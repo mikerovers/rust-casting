@@ -33,14 +33,16 @@ fn draw_rectangle(image: &mut Vec<u32>, image_width: usize, image_height: usize,
         for y in 0..h {
             let cx = x_cor + x;
             let cy = y_cor + y;
-            assert!(cx < image_width && cy < image_height);
+            if cx >= image_width || cy >= image_height {
+                continue;
+            }
             image[cx + cy * image_width] = color;
         }
     }
 }
 
 fn main() {
-    let window_width: usize = 512;
+    let window_width: usize = 1024;
     let window_height: usize = 512;
     let map_width: usize = 16;
     let map_height: usize = 16;
@@ -55,19 +57,10 @@ fn main() {
 
     let mut framebuffer: Vec<u32> = Vec::with_capacity(window_width * window_height);
 
-    framebuffer.resize(window_height * window_width, 255);
+    framebuffer.resize(window_height * window_width, pack_color(255, 255, 255, 255));
     println!("Framebuffer is {} values long", framebuffer.len());
 
-    for y in 0..window_height {
-        for x in 0..window_width {
-            let r: u8 = (255 * y / window_height) as u8;
-            let g: u8 = (255 * x / window_width) as u8;
-            let b: u8 = 0;
-            framebuffer[x + y * window_width] = pack_color(r, g, b, 255);
-        }
-    }
-
-    let rect_w: usize = window_width / map_width;
+    let rect_w: usize = window_width / (map_width * 2);
     let rect_h: usize = window_height / map_height;
     for y in 0..map_height {
         for x in 0..map_width {
@@ -81,10 +74,8 @@ fn main() {
         }
     }
 
-    draw_rectangle(&mut framebuffer, window_width, window_height, (player_x * rect_w as f32) as usize, (player_y * rect_h as f32) as usize, 5, 5, pack_color(255, 255, 255, 255));
-
-    for w in 0..window_width {
-        let angle: f32 = player_a - fov / 2.0 + fov * w as f32 / window_width as f32;
+    for w in 0..window_width / 2 {
+        let angle: f32 = player_a - fov / 2.0 + fov * (w as f32) / (window_width as f32 / 2.0);
 
         let mut t: f32 = 0.0;
         while t <= 20.0 {
@@ -92,13 +83,15 @@ fn main() {
             let cx: f32 = player_x + t * angle.cos();
             let cy: f32 = player_y + t * angle.sin();
 
-            if map[cx as usize + cy as usize * map_width] != ' ' {
-                break;
-            }
-
             let pix_x = (cx * rect_w as f32) as usize;
             let pix_y = (cy * rect_h as f32) as usize;
-            framebuffer[pix_x + pix_y * window_width] = pack_color(255, 255, 255, 255);
+            framebuffer[pix_x + pix_y * window_width] = pack_color(160, 160, 160, 255);
+
+            if map[cx as usize + cy as usize * map_width] != ' ' {
+                let column_height: usize = (window_height as f32 / t) as usize;
+                draw_rectangle(&mut framebuffer, window_width, window_height, ((window_width as f32) / 2.0 + (w as f32)) as usize, ((window_height as f32) / 2.0 - (column_height as f32) / 2.0) as usize, 1, column_height, pack_color(0, 255, 255, 255));
+                break;
+            }
         }
     }
 
