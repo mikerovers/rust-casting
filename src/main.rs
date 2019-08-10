@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::error::Error;
 use std::io::Write;
-use std::os::raw::c_void;
 
 fn pack_color(r: u8, g: u8, b: u8, a: u8) -> u32 {
     return (((a as u32) << 24) + ((b as u32) << 16) + ((g as u32) << 8) + r as u32) as u32;
@@ -48,7 +47,7 @@ fn main() {
 
     let map: Vec<char> = "00002222222200001              01      11111   01     0        00     0  11100000     3        00   10000      00   0   11100  00   0   0      00   0   1  000000       1      02       1      00       0      00 0000000      00              00002222222200000".chars().collect();
 
-//    assert_eq!(map.len(), map_width * map_height + 1);
+    assert_eq!(map.len(), map_width * map_height);
 
     let mut framebuffer: Vec<u32> = Vec::with_capacity(window_width * window_height);
 
@@ -71,9 +70,9 @@ fn main() {
             if map[x + y * map_width] == ' ' {
                 continue;
             }
+            
             let rect_x = x * rect_w;
             let rect_y = y * rect_h;
-            println!("|{}|", map[x + y * map_width]);
             draw_rectangle(&mut framebuffer, window_width, window_height, rect_x, rect_y, rect_w, rect_h, pack_color(0, 255, 255, 255));
         }
     }
