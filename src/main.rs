@@ -23,7 +23,6 @@ fn drop_ppm_image(file_name: &String, image: &Vec<u32>, w: usize, h: usize) {
         file.write(&[unpacked_color.0]);
         file.write(&[unpacked_color.1]);
         file.write(&[unpacked_color.2]);
-
     }
 }
 
@@ -48,8 +47,9 @@ fn main() {
     let map: Vec<char> = "00002222222200001              01      11111   01     0        00     0  11100000     3        00   10000      00   0   11100  00   0   0      00   0   1  000000       1      02       1      00       0      00 0000000      00              00002222222200000".chars().collect();
 
     assert_eq!(map.len(), map_width * map_height);
-    let player_x: f32 = 3.456;
-    let player_y: f32 = 2.345;
+    let mut player_x: f32 = 3.456;
+    let mut player_y: f32 = 2.345;
+    let mut player_a: f32 = 1.523;
 
     let mut framebuffer: Vec<u32> = Vec::with_capacity(window_width * window_height);
 
@@ -80,6 +80,21 @@ fn main() {
     }
 
     draw_rectangle(&mut framebuffer, window_width, window_height, (player_x * rect_w as f32) as usize, (player_y * rect_h as f32) as usize, 5, 5, pack_color(255, 255, 255, 255));
+
+    let mut t: f32 = 0.0;
+    while t <= 20.0 {
+        t += 0.05;
+        let cx: f32 = player_x + t * player_a.cos();
+        let cy: f32 = player_y + t * player_a.sin();
+
+        if map[cx as usize + cy as usize * map_width] != ' ' {
+            break;
+        }
+
+        let pix_x = (cx * rect_w as f32) as usize;
+        let pix_y = (cy * rect_h as f32) as usize;
+        framebuffer[pix_x + pix_y * window_width] = pack_color(255, 255, 255, 255);
+    }
 
     drop_ppm_image(&String::from("./output.ppm"), &framebuffer, window_width, window_height);
     println!("Finished!");
