@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::error::Error;
 use std::io::Write;
+use std::f32::consts::PI;
 
 fn pack_color(r: u8, g: u8, b: u8, a: u8) -> u32 {
     return (((a as u32) << 24) + ((b as u32) << 16) + ((g as u32) << 8) + r as u32) as u32;
@@ -50,6 +51,7 @@ fn main() {
     let mut player_x: f32 = 3.456;
     let mut player_y: f32 = 2.345;
     let mut player_a: f32 = 1.523;
+    let mut fov: f32 = PI / 3.0;
 
     let mut framebuffer: Vec<u32> = Vec::with_capacity(window_width * window_height);
 
@@ -81,19 +83,23 @@ fn main() {
 
     draw_rectangle(&mut framebuffer, window_width, window_height, (player_x * rect_w as f32) as usize, (player_y * rect_h as f32) as usize, 5, 5, pack_color(255, 255, 255, 255));
 
-    let mut t: f32 = 0.0;
-    while t <= 20.0 {
-        t += 0.05;
-        let cx: f32 = player_x + t * player_a.cos();
-        let cy: f32 = player_y + t * player_a.sin();
+    for w in 0..window_width {
+        let angle: f32 = player_a - fov / 2.0 + fov * w as f32 / window_width as f32;
 
-        if map[cx as usize + cy as usize * map_width] != ' ' {
-            break;
+        let mut t: f32 = 0.0;
+        while t <= 20.0 {
+            t += 0.05;
+            let cx: f32 = player_x + t * angle.cos();
+            let cy: f32 = player_y + t * angle.sin();
+
+            if map[cx as usize + cy as usize * map_width] != ' ' {
+                break;
+            }
+
+            let pix_x = (cx * rect_w as f32) as usize;
+            let pix_y = (cy * rect_h as f32) as usize;
+            framebuffer[pix_x + pix_y * window_width] = pack_color(255, 255, 255, 255);
         }
-
-        let pix_x = (cx * rect_w as f32) as usize;
-        let pix_y = (cy * rect_h as f32) as usize;
-        framebuffer[pix_x + pix_y * window_width] = pack_color(255, 255, 255, 255);
     }
 
     drop_ppm_image(&String::from("./output.ppm"), &framebuffer, window_width, window_height);
