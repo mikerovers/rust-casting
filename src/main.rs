@@ -76,6 +76,21 @@ fn load_texture(file_name: &String) -> (Vec<u32>, u32, u32) {
     (texture, texture_size, texture_cnt)
 }
 
+fn texture_column(image: &Vec<u32>, texture_size: usize, number_of_textures: usize, texture_id: usize, texture_coordinate: usize, column_height: usize) -> Vec<u32> {
+    let image_width: usize = texture_size * number_of_textures;
+    let image_height = texture_size;
+    assert!(image.len() == image_width * image_height && texture_coordinate < texture_size && texture_id < number_of_textures);
+    let mut column: Vec<u32> = Vec::with_capacity(column_height);
+    column.resize(column_height, 0);
+    for y in 0..column_height {
+        let pix_x: usize = texture_id * texture_size + texture_coordinate;
+        let pix_y: usize = (y * texture_size) / column_height;
+        column[y] = image[pix_x + pix_y * image_width];
+    }
+
+    column
+}
+
 fn main() {
     let window_width: usize = 1024;
     let window_height: usize = 512;
@@ -116,7 +131,6 @@ fn main() {
             let rect_x = x * rect_w;
             let rect_y = y * rect_h;
             let texture_id = map[x + y * map_width] as usize - '0' as usize;
-//            let icolor = map[x + y * map_width] as usize - '0' as usize;
             assert!((texture_id as u32) < (texture_count as u32));
 
             draw_rectangle(&mut framebuffer, window_width, window_height, rect_x, rect_y, rect_w, rect_h, wall_texture[texture_id * texture_size as usize]);
@@ -132,24 +146,43 @@ fn main() {
             let cx: f32 = player_x + t * angle.cos();
             let cy: f32 = player_y + t * angle.sin();
 
-            let pix_x = (cx * rect_w as f32) as usize;
-            let pix_y = (cy * rect_h as f32) as usize;
-            framebuffer[pix_x + pix_y * window_width] = pack_color(160, 160, 160, 255);
+            let mut pix_x = (cx * rect_w as f32) as i32;
+            let mut pix_y = (cy * rect_h as f32) as i32;
+            framebuffer[(pix_x + pix_y * window_width as i32) as usize] = pack_color(160, 160, 160, 255);
 
             if map[cx as usize + cy as usize * map_width] != ' ' {
                 let texture_id = map[cx as usize + cy as usize * map_width] as usize - '0' as usize;
                 assert!(texture_id < texture_count as usize);
                 let column_height: usize = (window_height as f32 / (t * (angle - player_a).cos())) as usize;
-                draw_rectangle(&mut framebuffer, window_width, window_height, ((window_width as f32) / 2.0 + (w as f32)) as usize, ((window_height as f32) / 2.0 - (column_height as f32) / 2.0) as usize, 1, column_height, wall_texture[texture_id * texture_size as usize]);
+
+                let hit_x: f32 = cx - (cx + 0.5).floor();
+                let hit_y: f32 = cy - (cy + 0.5).floor();
+
+                let mut x_texture_coordinate: i32 = (hit_x * texture_size as f32) as i32;
+                if hit_y.abs() > hit_x.abs() {
+                    x_texture_coordinate = (hit_y * texture_size as f32) as i32;
+                }
+
+                if x_texture_coordinate < 0 {
+                    x_texture_coordinate += texture_size as i32;
+                }
+
+                assert!(x_texture_coordinate >= 0 && x_texture_coordinate < (texture_size as i32));
+
+                let column: Vec<u32> = texture_column(&wall_texture, texture_size as usize, texture_count as usize, texture_id, x_texture_coordinate as usize, column_height);
+                pix_x = (window_width / 2 + w) as i32;
+                for j in 0..column_height {
+                    pix_y = (j + window_height / 2 - column_height / 2) as i32;
+                    if pix_y < 0 || pix_y > window_height as i32 {
+                        continue;
+                    }
+
+                    framebuffer[(pix_x + pix_y * window_width as i32) as usize] = column[j];
+                }
+
+//                draw_rectangle(&mut framebuffer, window_width, window_height, ((window_width as f32) / 2.0 + (w as f32)) as usize, ((window_height as f32) / 2.0 - (column_height as f32) / 2.0) as usize, 1, column_height, wall_texture[texture_id * texture_size as usize]);
                 break;
             }
-        }
-    }
-
-    let texture_id: usize = 4;
-    for y in 0..texture_size as usize {
-        for x in 0..texture_size as usize {
-            framebuffer[y + x * window_width] = wall_texture[y + texture_id * texture_size as usize + x * texture_size as usize * texture_count as usize]
         }
     }
 
