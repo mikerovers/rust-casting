@@ -1,7 +1,11 @@
+extern crate image;
+
 use std::fs::File;
 use std::error::Error;
 use std::io::Write;
 use std::f32::consts::PI;
+use std::path::Path;
+use image::GenericImageView;
 
 fn pack_color(r: u8, g: u8, b: u8, a: u8) -> u32 {
     return (((a as u32) << 24) + ((b as u32) << 16) + ((g as u32) << 8) + r as u32) as u32;
@@ -41,6 +45,35 @@ fn draw_rectangle(image: &mut Vec<u32>, image_width: usize, image_height: usize,
     }
 }
 
+fn load_texture(file_name: &String) -> (Vec<u32>, u32, u32) {
+    let number_of_channels = -1;
+
+    let image = image::open(Path::new(file_name)).unwrap();
+
+    let width = image.width();
+    let height = image.height();
+    let texture_cnt = width / height;
+    let texture_size = width / texture_cnt;
+
+    if width != height * texture_cnt {
+        panic!("Texture file must contain N square texture packed horizontally.")
+    }
+
+    let mut texture: Vec<u32> = Vec::with_capacity((width * height) as usize);
+    texture.resize(height as usize * width as usize, pack_color(255, 255, 255, 255));
+    for y in 0..height {
+        for x in 0..width {
+            let r = image.get_pixel(x, y).0[0] as u8;
+            let g = image.get_pixel(x, y).0[1] as u8;
+            let b = image.get_pixel(x, y).0[2] as u8;
+            let a = image.get_pixel(x, y).0[3] as u8;
+            texture [x as usize + y as usize * width as usize] = pack_color(r, g, b, a);
+        }
+    }
+
+    (texture, texture_size, texture_cnt)
+}
+
 fn main() {
     let window_width: usize = 1024;
     let window_height: usize = 512;
@@ -52,13 +85,15 @@ fn main() {
     assert_eq!(map.len(), map_width * map_height);
     let mut player_x: f32 = 3.456;
     let mut player_y: f32 = 2.345;
-    let mut player_a: f32 = 1.523;
+    let mut player_a: f32 = 25.223;
     let mut fov: f32 = PI / 3.0;
 
     let mut framebuffer: Vec<u32> = Vec::with_capacity(window_width * window_height);
 
     framebuffer.resize(window_height * window_width, pack_color(255, 255, 255, 255));
     println!("Framebuffer is {} values long", framebuffer.len());
+
+    let (wall_texture, texture_size, texture_count) = load_texture(&String::from("walltext.png"));
 
     let rect_w: usize = window_width / (map_width * 2);
     let rect_h: usize = window_height / map_height;
@@ -70,6 +105,7 @@ fn main() {
 
             let rect_x = x * rect_w;
             let rect_y = y * rect_h;
+
             draw_rectangle(&mut framebuffer, window_width, window_height, rect_x, rect_y, rect_w, rect_h, pack_color(0, 255, 255, 255));
         }
     }
@@ -79,7 +115,7 @@ fn main() {
 
         let mut t: f32 = 0.0;
         while t <= 20.0 {
-            t += 0.05;
+            t += 0.01;
             let cx: f32 = player_x + t * angle.cos();
             let cy: f32 = player_y + t * angle.sin();
 
@@ -88,10 +124,17 @@ fn main() {
             framebuffer[pix_x + pix_y * window_width] = pack_color(160, 160, 160, 255);
 
             if map[cx as usize + cy as usize * map_width] != ' ' {
-                let column_height: usize = (window_height as f32 / t) as usize;
+                let column_height: usize = (window_height as f32 / (t * (angle - player_a).cos())) as usize;
                 draw_rectangle(&mut framebuffer, window_width, window_height, ((window_width as f32) / 2.0 + (w as f32)) as usize, ((window_height as f32) / 2.0 - (column_height as f32) / 2.0) as usize, 1, column_height, pack_color(0, 255, 255, 255));
                 break;
             }
+        }
+    }
+
+    let texture_id: usize = 4;
+    for y in 0..texture_size as usize {
+        for x in 0..texture_size as usize {
+            framebuffer[y + x * window_width] = wall_texture[y + texture_id * texture_size as usize + x * texture_size as usize * texture_count as usize]
         }
     }
 
