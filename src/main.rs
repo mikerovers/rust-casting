@@ -1,4 +1,5 @@
 extern crate image;
+extern crate rand;
 
 use std::fs::File;
 use std::error::Error;
@@ -6,6 +7,7 @@ use std::io::Write;
 use std::f32::consts::PI;
 use std::path::Path;
 use image::GenericImageView;
+use rand::prelude::*;
 
 fn pack_color(r: u8, g: u8, b: u8, a: u8) -> u32 {
     return (((a as u32) << 24) + ((b as u32) << 16) + ((g as u32) << 8) + r as u32) as u32;
@@ -82,10 +84,18 @@ fn main() {
 
     let map: Vec<char> = "00002222222200001              01      11111   01     0        00     0  11100000     3        00   10000      00   0   11100  00   0   0      00   0   1  000000       1      02       1      00       0      00 0000000      00              00002222222200000".chars().collect();
 
+    let mut rng = rand::thread_rng();
+    let number_of_colors: usize = 10;
+    let mut colors: Vec<u32> = Vec::with_capacity(number_of_colors);
+    colors.resize(number_of_colors, 0);
+    for i in 0..number_of_colors {
+        colors[i] = pack_color(rng.gen_range(0, 255), rng.gen_range(0, 255), rng.gen_range(0, 255), rng.gen_range(0, 255));
+    }
+
     assert_eq!(map.len(), map_width * map_height);
     let mut player_x: f32 = 3.456;
     let mut player_y: f32 = 2.345;
-    let mut player_a: f32 = 25.223;
+    let mut player_a: f32 = 1.523;
     let mut fov: f32 = PI / 3.0;
 
     let mut framebuffer: Vec<u32> = Vec::with_capacity(window_width * window_height);
@@ -105,8 +115,10 @@ fn main() {
 
             let rect_x = x * rect_w;
             let rect_y = y * rect_h;
+            let icolor = map[x + y * map_width] as usize - '0' as usize;
+            assert!((icolor as u32) < (number_of_colors as u32));
 
-            draw_rectangle(&mut framebuffer, window_width, window_height, rect_x, rect_y, rect_w, rect_h, pack_color(0, 255, 255, 255));
+            draw_rectangle(&mut framebuffer, window_width, window_height, rect_x, rect_y, rect_w, rect_h, colors[icolor]);
         }
     }
 
@@ -124,8 +136,9 @@ fn main() {
             framebuffer[pix_x + pix_y * window_width] = pack_color(160, 160, 160, 255);
 
             if map[cx as usize + cy as usize * map_width] != ' ' {
+                let icolor = map[cx as usize + cy as usize * map_width] as usize - '0' as usize;
                 let column_height: usize = (window_height as f32 / (t * (angle - player_a).cos())) as usize;
-                draw_rectangle(&mut framebuffer, window_width, window_height, ((window_width as f32) / 2.0 + (w as f32)) as usize, ((window_height as f32) / 2.0 - (column_height as f32) / 2.0) as usize, 1, column_height, pack_color(0, 255, 255, 255));
+                draw_rectangle(&mut framebuffer, window_width, window_height, ((window_width as f32) / 2.0 + (w as f32)) as usize, ((window_height as f32) / 2.0 - (column_height as f32) / 2.0) as usize, 1, column_height, colors[icolor]);
                 break;
             }
         }
