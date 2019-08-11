@@ -82,7 +82,7 @@ fn main() {
     let map_width: usize = 16;
     let map_height: usize = 16;
 
-    let map: Vec<char> = "00002222222200001              01      11111   01     0        00     0  11100000     3        00   10000      00   0   11100  00   0   0      00   0   1  000000       1      02       1      00       0      00 0000000      00              00002222222200000".chars().collect();
+    let map: Vec<char> = "00002222222200001              01      11111   01     0        00     0  11100000     3        00   10000      00   3   11100  05   4   0      05   4   1  000000       1      02       1      00       0      00 0000000      00              00002222222200000".chars().collect();
 
     let mut rng = rand::thread_rng();
     let number_of_colors: usize = 10;
@@ -115,10 +115,11 @@ fn main() {
 
             let rect_x = x * rect_w;
             let rect_y = y * rect_h;
-            let icolor = map[x + y * map_width] as usize - '0' as usize;
-            assert!((icolor as u32) < (number_of_colors as u32));
+            let texture_id = map[x + y * map_width] as usize - '0' as usize;
+//            let icolor = map[x + y * map_width] as usize - '0' as usize;
+            assert!((texture_id as u32) < (texture_count as u32));
 
-            draw_rectangle(&mut framebuffer, window_width, window_height, rect_x, rect_y, rect_w, rect_h, colors[icolor]);
+            draw_rectangle(&mut framebuffer, window_width, window_height, rect_x, rect_y, rect_w, rect_h, wall_texture[texture_id * texture_size as usize]);
         }
     }
 
@@ -136,9 +137,10 @@ fn main() {
             framebuffer[pix_x + pix_y * window_width] = pack_color(160, 160, 160, 255);
 
             if map[cx as usize + cy as usize * map_width] != ' ' {
-                let icolor = map[cx as usize + cy as usize * map_width] as usize - '0' as usize;
+                let texture_id = map[cx as usize + cy as usize * map_width] as usize - '0' as usize;
+                assert!(texture_id < texture_count as usize);
                 let column_height: usize = (window_height as f32 / (t * (angle - player_a).cos())) as usize;
-                draw_rectangle(&mut framebuffer, window_width, window_height, ((window_width as f32) / 2.0 + (w as f32)) as usize, ((window_height as f32) / 2.0 - (column_height as f32) / 2.0) as usize, 1, column_height, colors[icolor]);
+                draw_rectangle(&mut framebuffer, window_width, window_height, ((window_width as f32) / 2.0 + (w as f32)) as usize, ((window_height as f32) / 2.0 - (column_height as f32) / 2.0) as usize, 1, column_height, wall_texture[texture_id * texture_size as usize]);
                 break;
             }
         }
