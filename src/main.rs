@@ -22,6 +22,7 @@ use std::path::Path;
 use image::{GenericImageView, Frame};
 use rand::prelude::*;
 use crate::util::{pack_color, drop_ppm_image};
+use std::cmp::min;
 
 fn wall_x_texture_coordinate(hit_x: f32, hit_y: f32, texture_walls: &mut Texture) -> i32 {
     let x: f32 = hit_x - (hit_x + 0.5).floor();
@@ -100,6 +101,37 @@ fn render(frame_buffer: &mut Framebuffer, map: &mut Map, player: &Player, sprite
 
     for i in 0..sprites.len() {
         map_show_sprite(&sprites[i], frame_buffer, map);
+        draw_sprite(&sprites[i], frame_buffer, player, texture_monsters);
+    }
+}
+
+fn draw_sprite(sprite: &Sprite, frame_buffer: &mut Framebuffer, player: &Player, texture_sprites: &Texture) {
+    let mut sprite_dir: f32 = (sprite.y - player.y_position).atan2(sprite.x - player.x_position);
+    while sprite_dir - player.angle > PI {
+        sprite_dir -= 2.0 * PI;
+    }
+    while sprite_dir - player.angle < -PI {
+        sprite_dir += 2.0 * PI;
+    }
+
+    let sprite_dist: f32 = ((player.x_position - sprite.x).powf(2.0) + (player.y_position - sprite.y).powf(2.0)).sqrt();
+    let sprite_screen_size = min(1000, (frame_buffer.height as f32 / sprite_dist) as i32);
+//    let h_offset: i32 = ((sprite_dir - player.angle) / player.fov * (frame_buffer.width / 2) as f32 + ((frame_buffer.width / 2) / 2) as f32 - (texture_sprites.size / 2) as f32) as i32;
+    let v_offset: i32 = (frame_buffer.height as f32 / 2.0 - sprite_screen_size as f32 / 2.0) as i32;
+    let h_offset: i32 = ((sprite_dir - player.angle) / player.fov * (frame_buffer.width as f32 / 2.0) + (frame_buffer.width as f32 / 2.0) / 2.0 - texture_sprites.size as f32 / 2.0) as i32;
+
+    for i in 0..sprite_screen_size {
+        if h_offset + i < 0 || h_offset + i >= (frame_buffer.width as f32 / 2.0) as i32 {
+            continue;
+        }
+
+        for j in 0..sprite_screen_size {
+            if v_offset + j < 0 || v_offset + j >= frame_buffer.height as i32 {
+                continue;
+            }
+
+            frame_buffer.set_pixel((frame_buffer.width as f32 / 2.0 + h_offset as f32 + i as f32) as usize, (v_offset + j) as usize, pack_color(0, 0, 0, 255));
+        }
     }
 }
 
