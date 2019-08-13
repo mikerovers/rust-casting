@@ -14,13 +14,7 @@ mod player;
 mod map;
 mod util;
 
-use std::fs::File;
-use std::error::Error;
-use std::io::Write;
 use std::f32::consts::PI;
-use std::path::Path;
-use image::{GenericImageView, Frame};
-use rand::prelude::*;
 use crate::util::{pack_color, drop_ppm_image, unpack_color};
 use std::cmp::min;
 

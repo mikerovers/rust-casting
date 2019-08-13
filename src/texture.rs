@@ -12,8 +12,6 @@ pub struct Texture {
 
 impl Texture {
     pub fn new(file_name: &String) -> Texture {
-        let number_of_channels = -1;
-
         let image = image::open(Path::new(file_name)).unwrap();
 
         let width = image.width();
