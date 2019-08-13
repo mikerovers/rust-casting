@@ -5,7 +5,9 @@ use framebuffer::Framebuffer;
 use player::Player;
 use map::Map;
 use texture::Texture;
+use sprite::Sprite;
 
+mod sprite;
 mod texture;
 mod framebuffer;
 mod player;
@@ -21,13 +23,13 @@ use image::{GenericImageView, Frame};
 use rand::prelude::*;
 use crate::util::{pack_color, drop_ppm_image};
 
-fn wall_x_texture_coordinate(x: f32, y: f32, texture_walls: &mut Texture) -> i32 {
-    let hit_x: f32 = x - (x + 0.5).floor();
-    let hit_y: f32 = y - (y + 0.5).floor();
+fn wall_x_texture_coordinate(hit_x: f32, hit_y: f32, texture_walls: &mut Texture) -> i32 {
+    let x: f32 = hit_x - (hit_x + 0.5).floor();
+    let y: f32 = hit_y - (hit_y + 0.5).floor();
 
-    let mut tex: i32 = (hit_x * texture_walls.size as f32) as i32;
-    if hit_y.abs() > hit_x.abs() {
-        tex = (hit_y * texture_walls.size as f32) as i32;
+    let mut tex: i32 = (x * texture_walls.size as f32) as i32;
+    if y.abs() > x.abs() {
+        tex = (y * texture_walls.size as f32) as i32;
     }
 
     if tex < 0 {
@@ -39,7 +41,13 @@ fn wall_x_texture_coordinate(x: f32, y: f32, texture_walls: &mut Texture) -> i32
     tex
 }
 
-fn render(frame_buffer: &mut Framebuffer, map: &mut Map, player: &Player, texture_walls: &mut Texture) {
+fn map_show_sprite(sprite: &Sprite, frame_buffer: &mut Framebuffer, map: &Map) {
+    let rect_w: usize = frame_buffer.width / (map.width * 2);
+    let rect_h: usize = frame_buffer.height / map.height;
+    frame_buffer.draw_rectangle((sprite.x * rect_w as f32 - 3.0) as usize, (sprite.y * rect_h as f32 - 3.0) as usize, 6, 6, pack_color(255, 0, 0, 255));
+}
+
+fn render(frame_buffer: &mut Framebuffer, map: &mut Map, player: &Player, sprites: &Vec<Sprite>, texture_walls: &mut Texture, texture_monsters: &mut Texture) {
     frame_buffer.clear(pack_color(255, 255, 255, 255));
     let rect_w = frame_buffer.width / (map.width * 2);
     let rect_h = frame_buffer.height / map.height;
@@ -73,7 +81,9 @@ fn render(frame_buffer: &mut Framebuffer, map: &mut Map, player: &Player, textur
 
             let texture_id = map.get(x as usize, y as usize);
             assert!(texture_id < texture_walls.count);
-            let column_height: usize = (frame_buffer.height as f32 / (t * (angle - player.angle).cos())) as usize;
+            let distance = t * (angle - player.angle).cos();
+
+            let column_height: usize = (frame_buffer.height as f32 / distance) as usize;
             let x_texcoord = wall_x_texture_coordinate(x, y, texture_walls);
             let column: Vec<u32> = texture_walls.get_scaled_column(texture_id, x_texcoord as usize, column_height);
             let pix_x: i32 = (w + frame_buffer.width / 2) as i32;
@@ -87,6 +97,10 @@ fn render(frame_buffer: &mut Framebuffer, map: &mut Map, player: &Player, textur
             break;
         }
     }
+
+    for i in 0..sprites.len() {
+        map_show_sprite(&sprites[i], frame_buffer, map);
+    }
 }
 
 fn main() {
@@ -96,11 +110,31 @@ fn main() {
     let mut map = Map::new(16, 16, "00002222222200001              01      11111   01     0        00     0  11100000     3        00   10000      00   3   11100  05   4   0      05   4   1  000000       1      02       1      00       0      00 0000000      00              00002222222200000".chars().collect());
 
     let mut texture_walls = Texture::new(&String::from("walltext.png"));
-    if !texture_walls.count == 0 {
+    let mut texture_monsters = Texture::new(&String::from("monsters.png"));
+    if !texture_walls.count == 0 || !texture_monsters.count == 0 {
         panic!("Failed to load wall texture");
     }
 
-    render(&mut frame_buffer, &mut map, &mut player, &mut texture_walls);
+    let mut sprites: Vec<Sprite> = Vec::new();
+    sprites.push(Sprite{
+        x: 1.834,
+        y: 8.765,
+        texture_id: 0
+    });
+
+    sprites.push(Sprite{
+        x: 5.323,
+        y: 5.365,
+        texture_id: 1
+    });
+
+    sprites.push(Sprite{
+        x: 4.123,
+        y: 10.265,
+        texture_id: 1
+    });
+
+    render(&mut frame_buffer, &mut map, &mut player, &mut sprites, &mut texture_walls, &mut texture_monsters);
     drop_ppm_image(&String::from("output.ppm"), &frame_buffer, frame_buffer.width, frame_buffer.height);
 
     println!("Finished!");
