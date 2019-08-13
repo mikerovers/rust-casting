@@ -21,7 +21,7 @@ use std::f32::consts::PI;
 use std::path::Path;
 use image::{GenericImageView, Frame};
 use rand::prelude::*;
-use crate::util::{pack_color, drop_ppm_image};
+use crate::util::{pack_color, drop_ppm_image, unpack_color};
 use std::cmp::min;
 
 fn wall_x_texture_coordinate(hit_x: f32, hit_y: f32, texture_walls: &mut Texture) -> i32 {
@@ -66,6 +66,8 @@ fn render(frame_buffer: &mut Framebuffer, map: &mut Map, player: &Player, sprite
         }
     }
 
+    let mut depth_buffer: Vec<f32> = Vec::new();
+    depth_buffer.resize(frame_buffer.width / 2, 1e3);
     for w in 0..frame_buffer.width / 2 {
         let angle: f32 = player.angle - player.fov / 2.0 + player.fov * (w as f32) / (frame_buffer.width as f32 / 2.0);
 
@@ -83,6 +85,7 @@ fn render(frame_buffer: &mut Framebuffer, map: &mut Map, player: &Player, sprite
             let texture_id = map.get(x as usize, y as usize);
             assert!(texture_id < texture_walls.count);
             let distance = t * (angle - player.angle).cos();
+            depth_buffer[w] = distance;
 
             let column_height: usize = (frame_buffer.height as f32 / distance) as usize;
             let x_texcoord = wall_x_texture_coordinate(x, y, texture_walls);
@@ -101,11 +104,11 @@ fn render(frame_buffer: &mut Framebuffer, map: &mut Map, player: &Player, sprite
 
     for i in 0..sprites.len() {
         map_show_sprite(&sprites[i], frame_buffer, map);
-        draw_sprite(&sprites[i], frame_buffer, player, texture_monsters);
+        draw_sprite(&sprites[i], &mut depth_buffer, frame_buffer, player, texture_monsters);
     }
 }
 
-fn draw_sprite(sprite: &Sprite, frame_buffer: &mut Framebuffer, player: &Player, texture_sprites: &Texture) {
+fn draw_sprite(sprite: &Sprite, dept_buffer: &mut Vec<f32>, frame_buffer: &mut Framebuffer, player: &Player, texture_sprites: &Texture) {
     let mut sprite_dir: f32 = (sprite.y - player.y_position).atan2(sprite.x - player.x_position);
     while sprite_dir - player.angle > PI {
         sprite_dir -= 2.0 * PI;
@@ -116,7 +119,6 @@ fn draw_sprite(sprite: &Sprite, frame_buffer: &mut Framebuffer, player: &Player,
 
     let sprite_dist: f32 = ((player.x_position - sprite.x).powf(2.0) + (player.y_position - sprite.y).powf(2.0)).sqrt();
     let sprite_screen_size = min(1000, (frame_buffer.height as f32 / sprite_dist) as i32);
-//    let h_offset: i32 = ((sprite_dir - player.angle) / player.fov * (frame_buffer.width / 2) as f32 + ((frame_buffer.width / 2) / 2) as f32 - (texture_sprites.size / 2) as f32) as i32;
     let v_offset: i32 = (frame_buffer.height as f32 / 2.0 - sprite_screen_size as f32 / 2.0) as i32;
     let h_offset: i32 = ((sprite_dir - player.angle) / player.fov * (frame_buffer.width as f32 / 2.0) + (frame_buffer.width as f32 / 2.0) / 2.0 - texture_sprites.size as f32 / 2.0) as i32;
 
@@ -125,12 +127,21 @@ fn draw_sprite(sprite: &Sprite, frame_buffer: &mut Framebuffer, player: &Player,
             continue;
         }
 
+        if dept_buffer[(h_offset + i) as usize] < sprite_dist {
+            continue;
+        }
+
         for j in 0..sprite_screen_size {
             if v_offset + j < 0 || v_offset + j >= frame_buffer.height as i32 {
                 continue;
             }
 
-            frame_buffer.set_pixel((frame_buffer.width as f32 / 2.0 + h_offset as f32 + i as f32) as usize, (v_offset + j) as usize, pack_color(0, 0, 0, 255));
+            let color = texture_sprites.get((i as f32 * texture_sprites.size as f32 / sprite_screen_size as f32) as usize, (j as f32 * texture_sprites.size as f32 / sprite_screen_size as f32) as usize, sprite.texture_id);
+            let unpacked_color = unpack_color(color);
+
+            if unpacked_color.3 > 128 {
+                frame_buffer.set_pixel((frame_buffer.width as f32 / 2.0 + h_offset as f32 + i as f32) as usize, (v_offset + j) as usize, *color);
+            }
         }
     }
 }
