@@ -48,7 +48,7 @@ fn map_show_sprite(sprite: &Sprite, frame_buffer: &mut Framebuffer, map: &Map) {
     frame_buffer.draw_rectangle((sprite.x * rect_w as f32 - 3.0) as usize, (sprite.y * rect_h as f32 - 3.0) as usize, 6, 6, pack_color(255, 0, 0, 255));
 }
 
-fn render(frame_buffer: &mut Framebuffer, map: &mut Map, player: &Player, sprites: &Vec<Sprite>, texture_walls: &mut Texture, texture_monsters: &mut Texture) {
+fn render(frame_buffer: &mut Framebuffer, map: &mut Map, player: &Player, sprites: &mut Vec<Sprite>, texture_walls: &mut Texture, texture_monsters: &mut Texture) {
     frame_buffer.clear(pack_color(255, 255, 255, 255));
     let rect_w = frame_buffer.width / (map.width * 2);
     let rect_h = frame_buffer.height / map.height;
@@ -103,6 +103,12 @@ fn render(frame_buffer: &mut Framebuffer, map: &mut Map, player: &Player, sprite
     }
 
     for i in 0..sprites.len() {
+        sprites[i].player_distance = ((player.x_position - sprites[i].x).powf(2.0) + (player.y_position - sprites[i].y).powf(2.0)).sqrt();;
+    }
+
+    sprites.sort_by(|a, b| b.player_distance.partial_cmp(&a.player_distance).unwrap());
+
+    for i in 0..sprites.len() {
         map_show_sprite(&sprites[i], frame_buffer, map);
         draw_sprite(&sprites[i], &mut depth_buffer, frame_buffer, player, texture_monsters);
     }
@@ -117,8 +123,9 @@ fn draw_sprite(sprite: &Sprite, dept_buffer: &mut Vec<f32>, frame_buffer: &mut F
         sprite_dir += 2.0 * PI;
     }
 
-    let sprite_dist: f32 = ((player.x_position - sprite.x).powf(2.0) + (player.y_position - sprite.y).powf(2.0)).sqrt();
-    let sprite_screen_size = min(1000, (frame_buffer.height as f32 / sprite_dist) as i32);
+//    let sprite_dist: f32 = ((player.x_position - sprite.x).powf(2.0) + (player.y_position - sprite.y).powf(2.0)).sqrt();
+    let sprite_screen_size = min(1000, (frame_buffer.height as f32 / sprite.player_distance) as i32);
+
     let v_offset: i32 = (frame_buffer.height as f32 / 2.0 - sprite_screen_size as f32 / 2.0) as i32;
     let h_offset: i32 = ((sprite_dir - player.angle) / player.fov * (frame_buffer.width as f32 / 2.0) + (frame_buffer.width as f32 / 2.0) / 2.0 - texture_sprites.size as f32 / 2.0) as i32;
 
@@ -127,7 +134,7 @@ fn draw_sprite(sprite: &Sprite, dept_buffer: &mut Vec<f32>, frame_buffer: &mut F
             continue;
         }
 
-        if dept_buffer[(h_offset + i) as usize] < sprite_dist {
+        if dept_buffer[(h_offset + i) as usize] < sprite.player_distance {
             continue;
         }
 
@@ -160,21 +167,31 @@ fn main() {
 
     let mut sprites: Vec<Sprite> = Vec::new();
     sprites.push(Sprite{
+        x: 3.523,
+        y: 3.812,
+        texture_id: 2,
+        player_distance: 0.0
+    });
+    
+    sprites.push(Sprite{
         x: 1.834,
         y: 8.765,
-        texture_id: 0
+        texture_id: 0,
+        player_distance: 0.0
     });
 
     sprites.push(Sprite{
         x: 5.323,
         y: 5.365,
-        texture_id: 1
+        texture_id: 1,
+        player_distance: 0.0
     });
 
     sprites.push(Sprite{
         x: 4.123,
         y: 10.265,
-        texture_id: 1
+        texture_id: 1,
+        player_distance: 0.0
     });
 
     render(&mut frame_buffer, &mut map, &mut player, &mut sprites, &mut texture_walls, &mut texture_monsters);
